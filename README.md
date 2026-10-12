@@ -287,12 +287,11 @@
 
     <!-- Footer -->
     <footer class="text-center py-4 text-xs text-slate-500 border-t border-slate-900 font-mono">
-        SAMS (Smart Active Micro-Vibration Suppression) & SROS (Spatial Robotic Optical System) &bull; Simulação Cirúrgica Avançada v3.4
+        SAMS (Smart Active Micro-Vibration Suppression) & SROS (Spatial Robotic Optical System) &bull; Simulação Cirúrgica Avançada v3.5
     </footer>
 
     <!-- JavaScript Simulation Engine -->
     <script>
-        // --- Simulation State ---
         let state = {
             environment: 'space', // 'space', 'warzone', 'nano'
             samsActive: true,
@@ -310,7 +309,6 @@
             laserTimer: 0
         };
 
-        // DOM Elements
         const canvas = document.getElementById('simCanvas');
         const ctx = canvas.getContext('2d');
         const samsToggleEl = document.getElementById('samsToggle');
@@ -322,7 +320,6 @@
         const metricDeviationEl = document.getElementById('metric-deviation');
         const aiConsole = document.getElementById('ai-console');
 
-        // Initialize Audio (Web Audio API for Sci-Fi sound effects)
         let audioCtx = null;
         function initAudio() {
             if (!audioCtx) {
@@ -349,13 +346,14 @@
             }
         }
 
-        // Initialize Cells and Grid
         function initCells() {
             state.cells = [];
+            const width = canvas.clientWidth || 600;
+            const height = canvas.clientHeight || 450;
             for (let i = 0; i < 40; i++) {
                 state.cells.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
+                    x: Math.random() * width,
+                    y: Math.random() * height,
                     radius: 15 + Math.random() * 25,
                     vx: (Math.random() - 0.5) * 0.5,
                     vy: (Math.random() - 0.5) * 0.5,
@@ -363,24 +361,24 @@
                     type: Math.random() > 0.3 ? 'healthy' : 'damaged'
                 });
             }
-            state.targetX = canvas.width / 2;
-            state.targetY = canvas.height / 2;
+            state.targetX = width / 2;
+            state.targetY = height / 2;
             state.scalpelX = state.targetX;
             state.scalpelY = state.targetY;
         }
 
-        // Resize Canvas dynamically
         function resizeCanvas() {
             const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width * window.devicePixelRatio;
-            canvas.height = rect.height * window.devicePixelRatio;
-            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            // Reset and apply proper scale to prevent devicePixelRatio accumulation bug
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             if (state.cells.length === 0) initCells();
         }
 
         window.addEventListener('resize', resizeCanvas);
 
-        // Control Handlers
         function setEnvironment(env) {
             state.environment = env;
             ['space', 'warzone', 'nano'].forEach(e => {
@@ -425,7 +423,6 @@
             logAI("⚡ Disparo de Laser Nanométrico acionado pelo SROS no micro-alvo.");
             playSciFiBeep(1200, 'square', 0.25);
             
-            // Add repair particles
             for (let i = 0; i < 25; i++) {
                 state.particles.push({
                     x: state.scalpelX,
@@ -452,7 +449,6 @@
             aiConsole.scrollTop = aiConsole.scrollHeight;
         }
 
-        // Canvas Mouse tracking
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
             state.mouseX = e.clientX - rect.left;
@@ -467,11 +463,9 @@
             logAI(`Novo micro-alvo definido pelo cirurgião em X:${Math.round(state.targetX)} Y:${Math.round(state.targetY)}`);
         });
 
-        // --- Main Animation & Simulation Loop ---
         function updateSimulation() {
             state.time += 0.03;
 
-            // Calculate external tremor / vehicle motion offset
             let rawShakeX = 0;
             let rawShakeY = 0;
             const intensityFactor = state.motionIntensity / 50;
@@ -480,7 +474,6 @@
                 rawShakeX = Math.sin(state.time * 8) * 15 * intensityFactor + Math.cos(state.time * 13) * 10 * intensityFactor;
                 rawShakeY = Math.cos(state.time * 7) * 15 * intensityFactor + Math.sin(state.time * 11) * 10 * intensityFactor;
             } else if (state.environment === 'warzone') {
-                // Seismic shocks
                 const shock = Math.random() > 0.95 ? 35 : 5;
                 rawShakeX = (Math.random() - 0.5) * shock * intensityFactor;
                 rawShakeY = (Math.random() - 0.5) * shock * intensityFactor;
@@ -489,32 +482,28 @@
                 rawShakeY = Math.cos(state.time * 18) * 5 * intensityFactor;
             }
 
-            // Apply SAMS dampening
             let finalShakeX = 0;
             let finalShakeY = 0;
             let precisionDeviation = 0;
 
             if (state.samsActive) {
-                // 100% Damping -> Shake reduced to 0.000 µm
                 finalShakeX = 0;
                 finalShakeY = 0;
                 precisionDeviation = 0.000;
-                metricStability.textContent = "100.0%";
-                metricStability.className = "text-sm font-bold text-cyan-400";
-                metricDeviation.textContent = "0.000 µm";
+                metricStabilityEl.textContent = "100.0%";
+                metricStabilityEl.className = "text-sm font-bold text-cyan-400";
+                metricDeviationEl.textContent = "0.000 µm";
                 hudErrorEl.textContent = "0.000 µm";
             } else {
-                // No SAMS -> Scalpel jumps wildly
                 finalShakeX = rawShakeX;
                 finalShakeY = rawShakeY;
                 precisionDeviation = (Math.abs(rawShakeX) + Math.abs(rawShakeY)) * 12.4;
-                metricStability.textContent = (Math.max(15, 100 - precisionDeviation / 5)).toFixed(1) + "%";
-                metricStability.className = "text-sm font-bold text-rose-400";
-                metricDeviation.textContent = precisionDeviation.toFixed(3) + " µm";
+                metricStabilityEl.textContent = (Math.max(15, 100 - precisionDeviation / 5)).toFixed(1) + "%";
+                metricStabilityEl.className = "text-sm font-bold text-rose-400";
+                metricDeviationEl.textContent = precisionDeviation.toFixed(3) + " µm";
                 hudErrorEl.textContent = precisionDeviation.toFixed(3) + " µm";
             }
 
-            // Target position follows mouse with damping or erratic jumps
             let targetGoalX = state.mouseX || (canvas.clientWidth / 2);
             let targetGoalY = state.mouseY || (canvas.clientHeight / 2);
 
@@ -523,20 +512,20 @@
                 targetGoalY = canvas.clientHeight / 2;
             }
 
-            // Scalpel interpolation
             const lerp = 0.15;
             state.scalpelX += (targetGoalX - state.scalpelX) * lerp;
             state.scalpelY += (targetGoalY - state.scalpelY) * lerp;
 
-            // Update cells
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+
             state.cells.forEach(cell => {
                 cell.x += cell.vx;
                 cell.y += cell.vy;
-                if (cell.x < 0 || cell.x > canvas.clientWidth) cell.vx *= -1;
-                if (cell.y < 0 || cell.y > canvas.clientHeight) cell.vy *= -1;
+                if (cell.x < 0 || cell.x > width) cell.vx *= -1;
+                if (cell.y < 0 || cell.y > height) cell.vy *= -1;
             });
 
-            // Update particles
             state.particles.forEach(p => {
                 p.x += p.vx;
                 p.y += p.vy;
@@ -549,18 +538,16 @@
                 if (state.laserTimer <= 0) state.laserActive = false;
             }
 
-            drawCanvas(finalShakeX, finalShakeY);
+            drawCanvas(finalShakeX, finalShakeY, width, height);
             requestAnimationFrame(updateSimulation);
         }
 
-        function drawCanvas(shakeX, shakeY) {
-            const width = canvas.clientWidth;
-            const height = canvas.clientHeight;
+        function drawCanvas(shakeX, shakeY, width, height) {
+            if (!width || !height) return;
             
             ctx.clearRect(0, 0, width, height);
 
             ctx.save();
-            // Apply background tremor transform if SAMS is OFF
             ctx.translate(shakeX, shakeY);
 
             // Draw cellular background grid
@@ -650,7 +637,6 @@
             const actualScalpelX = state.scalpelX + (state.samsActive ? 0 : shakeX);
             const actualScalpelY = state.scalpelY + (state.samsActive ? 0 : shakeY);
 
-            // Robotic arm linkage lines
             ctx.strokeStyle = '#334155';
             ctx.lineWidth = 6;
             ctx.beginPath();
@@ -658,13 +644,11 @@
             ctx.lineTo(actualScalpelX, actualScalpelY);
             ctx.stroke();
 
-            // Scalpel Head
             ctx.fillStyle = '#06b6d4';
             ctx.beginPath();
             ctx.arc(actualScalpelX, actualScalpelY, 8, 0, Math.PI * 2);
             ctx.fill();
 
-            // Nano-blade point
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 3;
             ctx.beginPath();
@@ -672,7 +656,6 @@
             ctx.lineTo(actualScalpelX + 12, actualScalpelY - 18);
             ctx.stroke();
 
-            // Laser Beam (if active)
             if (state.laserActive) {
                 ctx.strokeStyle = '#10b981';
                 ctx.lineWidth = 4;
@@ -682,10 +665,9 @@
                 ctx.moveTo(actualScalpelX, actualScalpelY);
                 ctx.lineTo(state.targetX, state.targetY);
                 ctx.stroke();
-                ctx.shadowBlur = 0; // reset
+                ctx.shadowBlur = 0;
             }
 
-            // Draw Repair Particles
             state.particles.forEach(p => {
                 ctx.fillStyle = p.color;
                 ctx.beginPath();
@@ -696,7 +678,6 @@
             ctx.restore();
         }
 
-        // Initialize on load
         window.onload = function() {
             resizeCanvas();
             updateSimulation();
